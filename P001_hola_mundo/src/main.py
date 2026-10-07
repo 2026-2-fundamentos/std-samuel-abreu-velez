@@ -1,8 +1,8 @@
 def pregunta_01():
 
-    raise NotImplementedError
+    raise "Hola mundo cruel!"
 
 
 def pregunta_02():
 
-    raise NotImplementedError
+    raise "Hello cruel world!"
