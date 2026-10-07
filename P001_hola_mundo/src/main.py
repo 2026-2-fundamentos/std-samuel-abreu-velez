@@ -1,8 +1,8 @@
 def pregunta_01():
 
-    raise "Hola mundo cruel!"
+    return "Hola mundo cruel!"
 
 
 def pregunta_02():
 
-    raise "Hello cruel world!"
+    return "Hello cruel world!"
