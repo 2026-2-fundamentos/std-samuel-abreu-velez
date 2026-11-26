@@ -1,14 +1,24 @@
+import csv
+import gzip
+from pathlib import Path
+
+INPUT_FILE = Path(__file__).resolve().parents[1] / "data" / "data.csv.gz"
+
+
+def leer_registros():
+    with gzip.open(INPUT_FILE, "rt", encoding="utf-8") as f:
+        return [fila for fila in csv.reader(f, delimiter="\t") if fila]
+
+
 def pregunta_07():
-    """
-    Para cada valor distinto de la segunda columna (`value`), construya la
-    lista de letras de la primera columna (`letter`) que aparecen con ese
-    valor. Conserve las letras repetidas y el orden en que aparecen en el
-    archivo. Retorne una lista de tuplas `(valor, letras)` ordenada por el
-    valor.
+    grupos = {}
+    for fila in leer_registros():
+        grupos.setdefault(int(fila[1]), []).append(fila[0])
+    return sorted(grupos.items())
 
-    Ejemplo del formato de la respuesta:
+def main():
+    print(pregunta_07())
 
-        [(0, ["C"]), (1, ["E", "B", "E"]), (2, ["A", "E"]), ...]
-    """
 
-    raise NotImplementedError
+if __name__ == "__main__":
+    main()

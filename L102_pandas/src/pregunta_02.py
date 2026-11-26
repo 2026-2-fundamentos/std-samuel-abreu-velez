@@ -1,11 +1,18 @@
+from pathlib import Path
+
+import pandas as pd
+
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+
+
 def pregunta_02():
     """
-    ¿Cuántas columnas tiene la tabla `data/tbl0.tsv`? Retorne la cantidad
-    como un número entero.
-
-    Ejemplo del formato de la respuesta:
-
-        4
+    Cantidad de columnas de `data/tbl0.tsv`.
     """
 
-    raise NotImplementedError
+    df = pd.read_csv(DATA_DIR / "tbl0.tsv", sep="\t")
+    return len(df.columns)
+
+
+if __name__ == "__main__":
+    print(pregunta_02())

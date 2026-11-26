@@ -1,16 +1,18 @@
+from pathlib import Path
+
+import pandas as pd
+
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+
+
 def pregunta_07():
     """
-    Usando `data/tbl0.tsv`, sume los valores de la columna `c2` para cada
-    categoría de la columna `c1`. Retorne una Serie de Pandas cuyo índice son
-    las categorías, en orden alfabético, y cuyos valores son las sumas.
-
-    Ejemplo del formato de la respuesta:
-
-        c1
-        A    37
-        B    36
-        C    27
-        ...
+    Suma de `c2` por categoría de `c1`.
     """
 
-    raise NotImplementedError
+    df = pd.read_csv(DATA_DIR / "tbl0.tsv", sep="\t")
+    return df.groupby("c1")["c2"].sum().sort_index()
+
+
+if __name__ == "__main__":
+    print(pregunta_07())

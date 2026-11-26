@@ -1,16 +1,19 @@
+from pathlib import Path
+
+import pandas as pd
+
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+
+
 def pregunta_09():
     """
-    Retorne la tabla `data/tbl0.tsv` completa con una columna adicional
-    llamada `year`, al final, que contenga el año de la fecha de la columna
-    `c3` como un texto de cuatro caracteres.
-
-    Ejemplo del formato de la respuesta:
-
-            c0 c1  c2          c3  year
-        0    0  E   1  1999-02-28  1999
-        1    1  A   2  1999-10-28  1999
-        2    2  B   5  1998-05-02  1998
-        ...
+    Tabla tbl0 con columna `year` (texto de 4 caracteres) tomada de c3.
     """
 
-    raise NotImplementedError
+    df = pd.read_csv(DATA_DIR / "tbl0.tsv", sep="\t")
+    df["year"] = df["c3"].astype(str).str[:4]
+    return df
+
+
+if __name__ == "__main__":
+    print(pregunta_09())

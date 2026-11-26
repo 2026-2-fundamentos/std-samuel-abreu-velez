@@ -1,53 +1,121 @@
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
+
+PROJECT_FOLDER = Path(__file__).resolve().parents[1]
+INPUT_FILE = PROJECT_FOLDER / "data" / "superstore_orders.csv.gz"
+SUBMISSION_DIR = PROJECT_FOLDER / "submission"
+
+BANDS = ["0%", "1%-5%", "6%-10%", "más de 10%"]
+EPS = 1e-9  # tolerancia para comparar proporciones decimales
+
+
+def asignar_rango(descuento):
+    return np.select(
+        [
+            descuento <= EPS,
+            descuento <= 0.05 + EPS,
+            descuento <= 0.10 + EPS,
+        ],
+        BANDS[:3],
+        default=BANDS[3],
+    )
+
+
+def resumir(df, claves):
+    """Medidas de rentabilidad por grupo, sin usar groupby.apply."""
+    es_perdida = df["Profit"] < 0
+    tabla = df.assign(
+        _perdida=es_perdida.astype(int),
+        _utilidad_perdida=(-df["Profit"]).where(es_perdida, 0.0),
+    )
+    resumen = tabla.groupby(claves).agg(
+        lines=("Profit", "size"),
+        orders=("Order ID", "nunique"),
+        sales=("Sales", "sum"),
+        profit=("Profit", "sum"),
+        loss_lines=("_perdida", "sum"),
+        lost_profit=("_utilidad_perdida", "sum"),
+    )
+    resumen["profit_margin"] = resumen["profit"] / resumen["sales"]
+    resumen["loss_line_rate"] = resumen["loss_lines"] / resumen["lines"]
+    return resumen.reset_index()
+
+
+def redondear(tabla):
+    tabla = tabla.copy()
+    tabla["sales"] = tabla["sales"].round(2)
+    for col in ("profit", "lost_profit"):
+        tabla[col] = tabla[col].round(4)
+    for col in ("profit_margin", "loss_line_rate"):
+        if col in tabla.columns:
+            tabla[col] = tabla[col].round(4)
+    return tabla
 
 
 def pregunta_01() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
-    Una cadena de suministros de oficina vende mucho, pero la gerencia
-    sospecha que parte de esas ventas no deja utilidad. El archivo
-    `data/superstore_orders.csv.gz` tiene una fila por línea de pedido, con
-    el número de pedido (`Order ID`), las ventas (`Sales`), la utilidad
-    (`Profit`), el descuento aplicado (`Discount`, como proporción), el
-    segmento del cliente (`Customer Segment`) y la categoría del producto
-    (`Product Category`). Una utilidad negativa significa que la línea se
-    vendió con pérdida.
-
-    Use estas definiciones:
-
-    - Margen (`profit_margin`): utilidad sobre ventas.
-    - Línea con pérdida: una línea cuya utilidad es negativa.
-    - `loss_line_rate`: la proporción de líneas con pérdida.
-    - `lost_profit`: la suma de las pérdidas de las líneas con pérdida,
-      escrita como número positivo.
-    - Rango de descuento (`discount_band`): `0%` si no hubo descuento,
-      `1%-5%` si fue mayor que 0 y hasta 5 %, `6%-10%` si fue mayor que 5 % y
-      hasta 10 %, y `más de 10%` en otro caso.
-
-    Genere tres archivos en `submission/`, sin el índice de Pandas y con las
-    columnas en el orden indicado:
-
-    1. `profitability_summary.csv`, con una sola fila: `lines` (cantidad de
-       líneas), `orders` (pedidos distintos), `sales`, `profit`,
-       `profit_margin`, `loss_lines` (cantidad de líneas con pérdida),
-       `loss_line_rate` y `lost_profit`.
-
-    2. `discount_summary.csv`, con una fila por rango de descuento, en el
-       orden en que se definieron arriba: `discount_band`, `lines`, `sales`,
-       `profit`, `profit_margin`, `loss_line_rate` y `lost_profit`.
-
-    3. `priority_segments.csv`, con los cinco segmentos segmento–categoría
-       que más utilidad pierden: `Customer Segment`, `Product Category`,
-       `lines`, `sales`, `profit`, `profit_margin` y `lost_profit`. Considere
-       solamente segmentos con al menos 100 líneas y ordénelos por
-       `lost_profit` de mayor a menor.
-
-    La función también debe retornar las tres tablas, en el mismo orden.
-
-    Ejemplo del formato de `discount_summary.csv`:
-
-        discount_band,lines,sales,profit,profit_margin,loss_line_rate,...
-        0%,166,170539.05,29472.3789,0.1728,0.488,...
-        ...
+    Genera `profitability_summary.csv`, `discount_summary.csv` y
+    `priority_segments.csv` en `submission/` y retorna las tres tablas.
     """
+    df = pd.read_csv(INPUT_FILE, sep=";", decimal=",", encoding="utf-8-sig")
+    df.columns = [c.replace("\ufeff", "").strip() for c in df.columns]
 
-    raise NotImplementedError
+    # 1. Resumen general (una sola fila).
+    profitability = resumir(df.assign(_todo=1), "_todo")
+    profitability = redondear(
+        profitability[
+            [
+                "lines",
+                "orders",
+                "sales",
+                "profit",
+                "profit_margin",
+                "loss_lines",
+                "loss_line_rate",
+                "lost_profit",
+            ]
+        ]
+    )
+
+    # 2. Resumen por rango de descuento, en el orden definido.
+    df["discount_band"] = asignar_rango(df["Discount"].to_numpy())
+    discount = resumir(df, "discount_band")
+    discount["_orden"] = discount["discount_band"].map(BANDS.index)
+    discount = discount.sort_values("_orden")
+    discount = redondear(
+        discount[
+            [
+                "discount_band",
+                "lines",
+                "sales",
+                "profit",
+                "profit_margin",
+                "loss_line_rate",
+                "lost_profit",
+            ]
+        ]
+    ).reset_index(drop=True)
+
+    # 3. Cinco segmentos segmento-categoría con mayor utilidad perdida.
+    claves = ["Customer Segment", "Product Category"]
+    segmentos = resumir(df, claves)
+    segmentos = segmentos[segmentos["lines"] >= 100]
+    segmentos = segmentos.sort_values("lost_profit", ascending=False, kind="stable")
+    priority = redondear(
+        segmentos.head(5)[
+            claves + ["lines", "sales", "profit", "profit_margin", "lost_profit"]
+        ]
+    ).reset_index(drop=True)
+
+    SUBMISSION_DIR.mkdir(parents=True, exist_ok=True)
+    profitability.to_csv(SUBMISSION_DIR / "profitability_summary.csv", index=False)
+    discount.to_csv(SUBMISSION_DIR / "discount_summary.csv", index=False)
+    priority.to_csv(SUBMISSION_DIR / "priority_segments.csv", index=False)
+
+    return profitability, discount, priority
+
+
+if __name__ == "__main__":
+    pregunta_01()

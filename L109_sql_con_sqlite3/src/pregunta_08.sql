@@ -25,3 +25,6 @@
 --
 --  Escriba su consulta debajo de esta línea.
 --
+SELECT CAST(STRFTIME('%Y', c23) AS INT) AS YEAR, AVG(c21)
+FROM tbl2
+GROUP BY STRFTIME('%Y', c23);

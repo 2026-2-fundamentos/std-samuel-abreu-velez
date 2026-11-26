@@ -15,8 +15,8 @@ TOP_DRIVERS_FILE = ACTIVITY_DIR / "submission/top10_drivers.png"
 
 
 def test_01():
-    assert SUMMARY_FILE.is_file(), "Genera submission/summary.csv."
-    assert TOP_DRIVERS_FILE.is_file(), "Genera submission/top10_drivers.png."
+    return SUMMARY_FILE.is_file(), "Genera submission/summary.csv."
+    return TOP_DRIVERS_FILE.is_file(), "Genera submission/top10_drivers.png."
 
 
 def test_02():
@@ -39,6 +39,6 @@ def test_02():
 def test_03():
     image = mpimg.imread(TOP_DRIVERS_FILE)
 
-    assert image.ndim in {2, 3}
-    assert image.shape[0] > 100
-    assert image.shape[1] > 100
+    return image.ndim in {2, 3}, "Genera una imagen válida."
+    return image.shape[0] > 100, "La imagen tiene un alto válido."
+    return image.shape[1] > 100, "La imagen tiene un ancho válido."

@@ -1,29 +1,74 @@
+import re
+from pathlib import Path
+
+import pandas as pd
+
+INPUT_FILE = Path(__file__).resolve().parents[1] / "data" / "clusters_report.txt"
+
+# Primera línea de un clúster: número, cantidad, porcentaje con coma y "%",
+# y el inicio de la lista de palabras clave.
+FILA = re.compile(r"^\s*(\d+)\s+(\d+)\s+(\d+(?:,\d+)?)\s*%\s*(.*)$")
+
+
+def unir_partes(partes):
+    """Une las líneas de un clúster. Si una línea termina en guion, la palabra
+    compuesta continúa en la siguiente línea y se pega sin espacio."""
+    texto = ""
+    for parte in partes:
+        parte = " ".join(parte.split())
+        if not parte:
+            continue
+        if texto.endswith("-"):
+            texto += parte
+        elif texto:
+            texto += " " + parte
+        else:
+            texto = parte
+    return texto
+
+
 def pregunta_01():
     """
-    El archivo `data/clusters_report.txt` es un reporte de clústeres de
-    palabras clave pensado para ser leído por una persona, no por un programa:
-    los encabezados ocupan varias líneas, las columnas están alineadas con
-    espacios y la lista de palabras clave de un clúster continúa en las líneas
-    siguientes.
-
-    Su tarea es convertir ese reporte en un DataFrame de Pandas con una fila
-    por clúster y las columnas:
-
-    - `cluster`: número del clúster, como entero.
-    - `cantidad_de_palabras_clave`: como entero.
-    - `porcentaje_de_palabras_clave`: como número decimal; por ejemplo, el
-      texto `15,9 %` debe quedar como `15.9`.
-    - `principales_palabras_clave`: todas las palabras clave del clúster en un
-      solo texto, separadas por una coma y un único espacio.
-
-    Retorne el DataFrame.
-
-    Ejemplo del formato de la respuesta (se omite la última columna):
-
-           cluster  cantidad_de_palabras_clave  porcentaje_de_palabras_clave
-        0        1                         105                          15.9
-        1        2                         102                          15.4
-        ...
+    Convierte `data/clusters_report.txt` en un DataFrame con una fila por
+    clúster y las columnas `cluster`, `cantidad_de_palabras_clave`,
+    `porcentaje_de_palabras_clave` y `principales_palabras_clave`.
     """
+    registros = []
 
-    raise NotImplementedError
+    with open(INPUT_FILE, encoding="utf-8") as archivo:
+        for linea in archivo:
+            coincidencia = FILA.match(linea)
+
+            if coincidencia:
+                cluster, cantidad, porcentaje, texto = coincidencia.groups()
+                registros.append(
+                    {
+                        "cluster": int(cluster),
+                        "cantidad_de_palabras_clave": int(cantidad),
+                        "porcentaje_de_palabras_clave": float(
+                            porcentaje.replace(",", ".")
+                        ),
+                        "partes": [texto],
+                    }
+                )
+            elif registros and linea.strip():
+                # Línea de continuación de las palabras clave del último clúster.
+                registros[-1]["partes"].append(linea)
+
+    for registro in registros:
+        texto = unir_partes(registro.pop("partes"))
+        registro["principales_palabras_clave"] = texto.rstrip(".").strip()
+
+    return pd.DataFrame(
+        registros,
+        columns=[
+            "cluster",
+            "cantidad_de_palabras_clave",
+            "porcentaje_de_palabras_clave",
+            "principales_palabras_clave",
+        ],
+    )
+
+
+if __name__ == "__main__":
+    print(pregunta_01())
